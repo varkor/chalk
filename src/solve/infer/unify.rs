@@ -326,6 +326,10 @@ impl<'t> Unifier<'t> {
         }
     }
 
+    fn unify_const_const(&mut self, a: &Const, b: &Const) -> Fallible<()> {
+        unimplemented!() // TODO(varkor)
+    }
+
     fn push_lifetime_eq_constraint(&mut self, a: Lifetime, b: Lifetime) {
         self.constraints.push(InEnvironment::new(
             self.environment,
@@ -341,6 +345,10 @@ impl<'t> Zipper for Unifier<'t> {
 
     fn zip_lifetimes(&mut self, a: &Lifetime, b: &Lifetime) -> Fallible<()> {
         self.unify_lifetime_lifetime(a, b)
+    }
+
+    fn zip_consts(&mut self, a: &Const, b: &Const) -> Fallible<()> {
+        self.unify_const_const(a, b)
     }
 
     fn zip_binders<T>(&mut self, _: &Binders<T>, _: &Binders<T>) -> Fallible<()>
@@ -411,6 +419,14 @@ impl<'u, 't> UniversalFolder for OccursCheck<'u, 't> {
             Ok(ui.to_lifetime()) // no need to shift, not relative to depth
         }
     }
+
+    fn fold_free_universal_const(
+        &mut self,
+        ui: UniverseIndex,
+        binders: usize,
+    ) -> Fallible<Const> {
+        unimplemented!() // TODO(varkor)
+    }
 }
 
 impl<'u, 't> ExistentialFolder for OccursCheck<'u, 't> {
@@ -479,6 +495,31 @@ impl<'u, 't> ExistentialFolder for OccursCheck<'u, 't> {
             InferenceValue::Bound(l) => {
                 let l = l.lifetime().unwrap().up_shift(binders);
                 l.fold_with(self, binders)
+            }
+        }
+    }
+
+    fn fold_free_existential_const(
+        &mut self,
+        depth: usize,
+        binders: usize,
+    ) -> Fallible<Const> {
+        let v = InferenceVariable::from_depth(depth);
+        match self.unifier.table.unify.probe_value(v) {
+            InferenceValue::Unbound(ui) => {
+                if self.universe_index < ui {
+                    self.unifier
+                        .table
+                        .unify
+                        .unify_var_value(v, InferenceValue::Unbound(self.universe_index))
+                        .unwrap();
+                }
+                Ok(Const::Var(depth).up_shift(binders))
+            }
+
+            InferenceValue::Bound(c) => {
+                let c = c.const_().unwrap().up_shift(binders);
+                c.fold_with(self, binders)
             }
         }
     }

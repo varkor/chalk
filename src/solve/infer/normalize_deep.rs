@@ -52,4 +52,16 @@ impl<'table> ExistentialFolder for DeepNormalizer<'table> {
             None => Ok(InferenceVariable::from_depth(depth + binders).to_lifetime()),
         }
     }
+
+    fn fold_free_existential_const(
+        &mut self,
+        depth: usize,
+        binders: usize,
+    ) -> Fallible<Const> {
+        let var = InferenceVariable::from_depth(depth);
+        match self.table.probe_const_var(var) {
+            Some(l) => Ok(l.fold_with(self, 0)?.up_shift(binders)),
+            None => Ok(InferenceVariable::from_depth(depth + binders).to_const()),
+        }
+    }
 }

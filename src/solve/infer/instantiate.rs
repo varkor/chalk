@@ -31,6 +31,9 @@ impl InferenceTable {
             ParameterKind::Lifetime(ui) => {
                 ParameterKind::Lifetime(self.new_variable(ui).to_lifetime())
             }
+            ParameterKind::Const(ui) => {
+                ParameterKind::Const(self.new_variable(ui).to_const())
+            }
         }
     }
 
@@ -109,6 +112,7 @@ impl InferenceTable {
                         let lt = Lifetime::ForAll(new_universe);
                         ParameterKind::Lifetime(lt)
                     }
+                    ParameterKind::Const(()) => unimplemented!(), // TODO(varkor)
                     ParameterKind::Ty(()) => ParameterKind::Ty(Ty::Apply(ApplicationTy {
                         name: TypeName::ForAll(new_universe),
                         parameters: vec![],
@@ -171,6 +175,18 @@ impl ExistentialFolder for Instantiator {
             Ok(self.vars[depth].assert_lifetime_ref().up_shift(binders))
         } else {
             Ok(Lifetime::Var(depth + binders - self.vars.len())) // see comment above
+        }
+    }
+
+    fn fold_free_existential_const(
+        &mut self,
+        depth: usize,
+        binders: usize,
+    ) -> Fallible<Const> {
+        if depth < self.vars.len() {
+            Ok(self.vars[depth].assert_const_ref().up_shift(binders))
+        } else {
+            Ok(Const::Var(depth + binders - self.vars.len())) // see comment above
         }
     }
 }

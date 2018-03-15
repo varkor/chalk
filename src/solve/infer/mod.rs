@@ -141,6 +141,17 @@ impl InferenceTable {
         }
     }
 
+    /// If `leaf` represents an inference variable `X`, and `X` is bound,
+    /// returns `Some(v)` where `v` is the value to which `X` is bound.
+    crate fn normalize_const(&mut self, leaf: &Const, binders: usize) -> Option<Const> {
+        match *leaf {
+            Const::Var(v) => {
+                let v1 = self.probe_const_var(InferenceVariable::from_depth(v))?;
+                Some(v1.up_shift(binders))
+            }
+        }
+    }
+
     /// Finds the type to which `var` is bound, returning `None` if it is not yet
     /// bound.
     ///
@@ -170,6 +181,20 @@ impl InferenceTable {
         }
     }
 
+    /// Finds the const to which `var` is bound, returning `None` if it is not yet
+    /// bound.
+    ///
+    /// # Panics
+    ///
+    /// This method is only valid for inference variables of kind
+    /// const. If this variable is of a different kind, then the function may panic.
+    fn probe_const_var(&mut self, var: InferenceVariable) -> Option<Const> {
+        match self.unify.probe_value(var) {
+            InferenceValue::Unbound(_) => None,
+            InferenceValue::Bound(ref val) => Some(val.as_ref().const_().unwrap().clone()),
+        }
+    }
+
     /// Given an unbound variable, returns its universe.
     ///
     /// # Panics
@@ -194,11 +219,20 @@ impl Ty {
     }
 }
 
+impl Const {
+    /// If this is a `Const::Var(d)`, returns `Some(d)` else `None`.
+    crate fn var(&self) -> Option<usize> {
+        let Const::Var(depth) = *self;
+        Some(depth)
+    }
+}
+
 impl ParameterInferenceVariable {
     crate fn to_parameter(self) -> Parameter {
         match self {
             ParameterKind::Ty(v) => ParameterKind::Ty(v.to_ty()),
             ParameterKind::Lifetime(v) => ParameterKind::Lifetime(v.to_lifetime()),
+            ParameterKind::Const(v) => ParameterKind::Const(v.to_const()),
         }
     }
 }

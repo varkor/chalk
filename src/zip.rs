@@ -29,6 +29,10 @@ crate trait Zipper {
     /// matching spots, beneath `binders` levels of binders.
     fn zip_lifetimes(&mut self, a: &Lifetime, b: &Lifetime) -> Fallible<()>;
 
+    /// Indicates that the two consts `a` and `b` were found in
+    /// matching spots, beneath `binders` levels of binders.
+    fn zip_consts(&mut self, a: &Const, b: &Const) -> Fallible<()>;
+
     /// Zips two values appearing beneath binders.
     fn zip_binders<T>(&mut self, a: &Binders<T>, b: &Binders<T>) -> Fallible<()>
     where
@@ -42,6 +46,10 @@ impl<'f, Z: Zipper> Zipper for &'f mut Z {
 
     fn zip_lifetimes(&mut self, a: &Lifetime, b: &Lifetime) -> Fallible<()> {
         (**self).zip_lifetimes(a, b)
+    }
+
+    fn zip_consts(&mut self, a: &Const, b: &Const) -> Fallible<()> {
+        (**self).zip_consts(a, b)
     }
 
     fn zip_binders<T>(&mut self, a: &Binders<T>, b: &Binders<T>) -> Fallible<()>
@@ -118,6 +126,12 @@ impl Zip for Ty {
 impl Zip for Lifetime {
     fn zip_with<Z: Zipper>(zipper: &mut Z, a: &Self, b: &Self) -> Fallible<()> {
         zipper.zip_lifetimes(a, b)
+    }
+}
+
+impl Zip for Const {
+    fn zip_with<Z: Zipper>(zipper: &mut Z, a: &Self, b: &Self) -> Fallible<()> {
+        zipper.zip_consts(a, b)
     }
 }
 
@@ -261,14 +275,18 @@ impl Zip for Goal {
 }
 
 // I'm too lazy to make `enum_zip` support type parameters.
-impl<T: Zip, L: Zip> Zip for ParameterKind<T, L> {
+impl<T: Zip, L: Zip, C: Zip> Zip for ParameterKind<T, L, C> {
     fn zip_with<Z: Zipper>(zipper: &mut Z, a: &Self, b: &Self) -> Fallible<()> {
         match (a, b) {
             (&ParameterKind::Ty(ref a), &ParameterKind::Ty(ref b)) => Zip::zip_with(zipper, a, b),
             (&ParameterKind::Lifetime(ref a), &ParameterKind::Lifetime(ref b)) => {
                 Zip::zip_with(zipper, a, b)
             }
-            (&ParameterKind::Ty(_), _) | (&ParameterKind::Lifetime(_), _) => {
+            (&ParameterKind::Const(ref a), &ParameterKind::Const(ref b)) => {
+                Zip::zip_with(zipper, a, b)
+            }
+            (&ParameterKind::Ty(_), _) | (&ParameterKind::Lifetime(_), _) |
+            (&ParameterKind::Const(_), _) => {
                 panic!("zipping things of mixed kind")
             }
         }

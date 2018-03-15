@@ -99,6 +99,7 @@ struct Inverter<'q> {
     table: &'q mut InferenceTable,
     inverted_ty: HashMap<UniverseIndex, InferenceVariable>,
     inverted_lifetime: HashMap<UniverseIndex, InferenceVariable>,
+    inverted_const: HashMap<UniverseIndex, InferenceVariable>,
 }
 
 impl<'q> Inverter<'q> {
@@ -107,6 +108,7 @@ impl<'q> Inverter<'q> {
             table,
             inverted_ty: HashMap::new(),
             inverted_lifetime: HashMap::new(),
+            inverted_const: HashMap::new(),
         }
     }
 }
@@ -139,6 +141,21 @@ impl<'q> UniversalFolder for Inverter<'q> {
                 .up_shift(binders),
         )
     }
+
+    fn fold_free_universal_const(
+        &mut self,
+        universe: UniverseIndex,
+        binders: usize,
+    ) -> Fallible<Const> {
+        let table = &mut self.table;
+        Ok(
+            self.inverted_const
+                .entry(universe)
+                .or_insert_with(|| table.new_variable(universe))
+                .to_const()
+                .up_shift(binders),
+        )
+    }
 }
 
 impl<'q> ExistentialFolder for Inverter<'q> {
@@ -151,6 +168,14 @@ impl<'q> ExistentialFolder for Inverter<'q> {
         _depth: usize,
         _binders: usize,
     ) -> Fallible<Lifetime> {
+        panic!("should not be any existentials")
+    }
+
+    fn fold_free_existential_const(
+        &mut self,
+        _depth: usize,
+        _binders: usize,
+    ) -> Fallible<Const> {
         panic!("should not be any existentials")
     }
 }

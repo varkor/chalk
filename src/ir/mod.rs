@@ -327,6 +327,12 @@ pub enum Lifetime {
     ForAll(UniverseIndex),
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Const {
+    /// See Ty::Var(_).
+    Var(usize),
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ApplicationTy {
     crate name: TypeName,
@@ -334,9 +340,10 @@ pub struct ApplicationTy {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum ParameterKind<T, L = T> {
+pub enum ParameterKind<T, L = T, C = T> {
     Ty(T),
     Lifetime(L),
+    Const(C),
 }
 
 impl<T> ParameterKind<T> {
@@ -344,6 +351,7 @@ impl<T> ParameterKind<T> {
         match self {
             ParameterKind::Ty(t) => t,
             ParameterKind::Lifetime(t) => t,
+            ParameterKind::Const(t) => t,
         }
     }
 
@@ -354,11 +362,12 @@ impl<T> ParameterKind<T> {
         match self {
             ParameterKind::Ty(t) => ParameterKind::Ty(op(t)),
             ParameterKind::Lifetime(t) => ParameterKind::Lifetime(op(t)),
+            ParameterKind::Const(t) => ParameterKind::Const(op(t)),
         }
     }
 }
 
-impl<T, L> ParameterKind<T, L> {
+impl<T, L, C> ParameterKind<T, L, C> {
     crate fn assert_ty_ref(&self) -> &T {
         self.as_ref().ty().unwrap()
     }
@@ -367,10 +376,15 @@ impl<T, L> ParameterKind<T, L> {
         self.as_ref().lifetime().unwrap()
     }
 
-    crate fn as_ref(&self) -> ParameterKind<&T, &L> {
+    crate fn assert_const_ref(&self) -> &C {
+        self.as_ref().const_().unwrap()
+    }
+
+    crate fn as_ref(&self) -> ParameterKind<&T, &L, &C> {
         match *self {
             ParameterKind::Ty(ref t) => ParameterKind::Ty(t),
             ParameterKind::Lifetime(ref l) => ParameterKind::Lifetime(l),
+            ParameterKind::Const(ref c) => ParameterKind::Const(c),
         }
     }
 
@@ -387,18 +401,26 @@ impl<T, L> ParameterKind<T, L> {
             _ => None,
         }
     }
-}
 
-impl<T, L> ast::Kinded for ParameterKind<T, L> {
-    fn kind(&self) -> ast::Kind {
-        match *self {
-            ParameterKind::Ty(_) => ast::Kind::Ty,
-            ParameterKind::Lifetime(_) => ast::Kind::Lifetime,
+    crate fn const_(self) -> Option<C> {
+        match self {
+            ParameterKind::Const(c) => Some(c),
+            _ => None,
         }
     }
 }
 
-crate type Parameter = ParameterKind<Ty, Lifetime>;
+impl<T, L, C> ast::Kinded for ParameterKind<T, L, C> {
+    fn kind(&self) -> ast::Kind {
+        match *self {
+            ParameterKind::Ty(_) => ast::Kind::Ty,
+            ParameterKind::Lifetime(_) => ast::Kind::Lifetime,
+            ParameterKind::Const(_) => ast::Kind::Const,
+        }
+    }
+}
+
+crate type Parameter = ParameterKind<Ty, Lifetime, Const>;
 
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ProjectionTy {
@@ -728,6 +750,7 @@ impl<T> UCanonical<T> {
             match parameter {
                 ParameterKind::Ty(Ty::Var(depth)) => index == *depth,
                 ParameterKind::Lifetime(Lifetime::Var(depth)) => index == *depth,
+                ParameterKind::Const(Const::Var(depth)) => index == *depth,
                 _ => false,
             }
         })
@@ -902,6 +925,16 @@ impl<'a> ExistentialFolder for &'a Substitution {
     ) -> Fallible<Lifetime> {
         let l = &self.parameters[depth];
         let l = l.assert_lifetime_ref();
+        Ok(l.up_shift(binders))
+    }
+
+    fn fold_free_existential_const(
+        &mut self,
+        depth: usize,
+        binders: usize,
+    ) -> Fallible<Const> {
+        let l = &self.parameters[depth];
+        let l = l.assert_const_ref();
         Ok(l.up_shift(binders))
     }
 }

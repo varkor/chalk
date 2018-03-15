@@ -233,6 +233,16 @@ impl<'q> UniversalFolder for UCollector<'q> {
         self.universes.add(universe);
         Ok(universe.to_lifetime())
     }
+
+    fn fold_free_universal_const(
+        &mut self,
+        universe: UniverseIndex,
+        _binders: usize,
+    ) -> Fallible<Const> {
+        // self.universes.add(universe);
+        // Ok(universe.to_const())
+        unimplemented!() // TODO(varkor)
+    }
 }
 
 impl<'q> IdentityExistentialFolder for UCollector<'q> {}
@@ -261,6 +271,16 @@ impl<'q> UniversalFolder for UMapToCanonical<'q> {
         let universe = self.universes.map_universe_to_canonical(universe0);
         Ok(universe.to_lifetime())
     }
+
+    fn fold_free_universal_const(
+        &mut self,
+        universe0: UniverseIndex,
+        _binders: usize,
+    ) -> Fallible<Const> {
+        // let universe = self.universes.map_universe_to_canonical(universe0);
+        // Ok(universe.to_const())
+        unimplemented!() // TODO(varkor)
+    }
 }
 
 impl<'q> IdentityExistentialFolder for UMapToCanonical<'q> {}
@@ -288,6 +308,16 @@ impl<'q> UniversalFolder for UMapFromCanonical<'q> {
     ) -> Fallible<Lifetime> {
         let universe = self.universes.map_universe_from_canonical(universe0);
         Ok(universe.to_lifetime())
+    }
+
+    fn fold_free_universal_const(
+        &mut self,
+        universe0: UniverseIndex,
+        _binders: usize,
+    ) -> Fallible<Const> {
+        // let universe = self.universes.map_universe_from_canonical(universe0);
+        // Ok(universe.to_const())
+        unimplemented!() // TODO(varkor)
     }
 }
 

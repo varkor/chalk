@@ -51,6 +51,21 @@ impl<'b> ExistentialFolder for Subst<'b> {
             }
         }
     }
+
+    fn fold_free_existential_const(
+        &mut self,
+        depth: usize,
+        binders: usize,
+    ) -> Fallible<Const> {
+        if depth >= self.parameters.len() {
+            Ok(Const::Var(depth - self.parameters.len() + binders))
+        } else {
+            match self.parameters[depth] {
+                ParameterKind::Const(ref c) => Ok(c.up_shift(binders)),
+                _ => panic!("mismatched kinds in substitution"),
+            }
+        }
+    }
 }
 
 impl<'b> IdentityUniversalFolder for Subst<'b> {}

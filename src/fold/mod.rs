@@ -61,6 +61,7 @@ pub trait Folder: ExistentialFolder + UniversalFolder + TypeFolder {
 pub trait TypeFolder {
     fn fold_ty(&mut self, ty: &Ty, binders: usize) -> Fallible<Ty>;
     fn fold_lifetime(&mut self, lifetime: &Lifetime, binders: usize) -> Fallible<Lifetime>;
+    fn fold_const(&mut self, cn: &Const, binders: usize) -> Fallible<Const>;
 }
 
 impl<T: ExistentialFolder + UniversalFolder + TypeFolder> Folder for T {
@@ -83,6 +84,10 @@ impl<T: ExistentialFolder + UniversalFolder + DefaultTypeFolder> TypeFolder for 
 
     fn fold_lifetime(&mut self, lifetime: &Lifetime, binders: usize) -> Fallible<Lifetime> {
         super_fold_lifetime(self.to_dyn(), lifetime, binders)
+    }
+
+    fn fold_const(&mut self, cn: &Const, binders: usize) -> Fallible<Const> {
+        super_fold_const(self.to_dyn(), cn, binders)
     }
 }
 
@@ -107,6 +112,13 @@ pub trait ExistentialFolder {
         depth: usize,
         binders: usize,
     ) -> Fallible<Lifetime>;
+
+    /// As `fold_free_existential_ty`, but for consts.
+    fn fold_free_existential_const(
+        &mut self,
+        depth: usize,
+        binders: usize,
+    ) -> Fallible<Const>;
 }
 
 /// A convenience trait. If you implement this, you get an
@@ -126,6 +138,14 @@ impl<T: IdentityExistentialFolder> ExistentialFolder for T {
     ) -> Fallible<Lifetime> {
         Ok(Lifetime::Var(depth + binders))
     }
+
+    fn fold_free_existential_const(
+        &mut self,
+        depth: usize,
+        binders: usize,
+    ) -> Fallible<Const> {
+        Ok(Const::Var(depth + binders))
+    }
 }
 
 pub trait UniversalFolder {
@@ -142,6 +162,13 @@ pub trait UniversalFolder {
         universe: UniverseIndex,
         binders: usize,
     ) -> Fallible<Lifetime>;
+
+    /// As with `fold_free_universal_ty`, but for consts.
+    fn fold_free_universal_const(
+        &mut self,
+        universe: UniverseIndex,
+        binders: usize,
+    ) -> Fallible<Const>;
 }
 
 /// A convenience trait. If you implement this, you get an
@@ -160,6 +187,14 @@ impl<T: IdentityUniversalFolder> UniversalFolder for T {
         _binders: usize,
     ) -> Fallible<Lifetime> {
         Ok(universe.to_lifetime())
+    }
+
+    fn fold_free_universal_const(
+        &mut self,
+        _universe: UniverseIndex,
+        _binders: usize,
+    ) -> Fallible<Const> {
+        unimplemented!() // TODO(varkor)
     }
 }
 
@@ -337,6 +372,13 @@ impl Fold for Lifetime {
     }
 }
 
+impl Fold for Const {
+    type Result = Self;
+    fn fold_with(&self, folder: &mut dyn Folder, binders: usize) -> Fallible<Self::Result> {
+        folder.fold_const(self, binders)
+    }
+}
+
 crate fn super_fold_lifetime(
     folder: &mut dyn Folder,
     lifetime: &Lifetime,
@@ -349,6 +391,20 @@ crate fn super_fold_lifetime(
             Ok(Lifetime::Var(depth))
         },
         Lifetime::ForAll(universe) => folder.fold_free_universal_lifetime(universe, binders),
+    }
+}
+
+crate fn super_fold_const(
+    folder: &mut dyn Folder,
+    cn: &Const,
+    binders: usize,
+) -> Fallible<Const> {
+    match *cn {
+        Const::Var(depth) => if depth >= binders {
+            folder.fold_free_existential_const(depth - binders, binders)
+        } else {
+            Ok(Const::Var(depth))
+        },
     }
 }
 
@@ -422,7 +478,7 @@ macro_rules! enum_fold {
 }
 
 enum_fold!(PolarizedTraitRef[] { Positive(a), Negative(a) });
-enum_fold!(ParameterKind[T,L] { Ty(a), Lifetime(a) } where T: Fold, L: Fold);
+enum_fold!(ParameterKind[T,L,C] { Ty(a), Lifetime(a), Const(a) } where T: Fold, L: Fold, C: Fold);
 enum_fold!(DomainGoal[] { Implemented(a), ProjectionEq(a), Normalize(a), UnselectedNormalize(a), WellFormed(a), FromEnv(a), InScope(a) });
 enum_fold!(WellFormed[] { Ty(a), TraitRef(a), ProjectionEq(a) });
 enum_fold!(FromEnv[] { Ty(a), TraitRef(a), ProjectionEq(a) });

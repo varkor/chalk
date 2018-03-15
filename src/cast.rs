@@ -212,6 +212,12 @@ impl Cast<Parameter> for Lifetime {
     }
 }
 
+impl Cast<Parameter> for Const {
+    fn cast(self) -> Parameter {
+        ParameterKind::Const(self)
+    }
+}
+
 macro_rules! map_impl {
     (impl[$($t:tt)*] Cast<$b:ty> for $a:ty) => {
         impl<$($t)*> Cast<$b> for $a {

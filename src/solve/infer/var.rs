@@ -63,6 +63,13 @@ impl InferenceVariable {
     crate fn to_lifetime(self) -> Lifetime {
         Lifetime::Var(self.index as usize)
     }
+
+    /// Convert this inference variable into a const. When using this
+    /// method, naturally you should know from context that the kind
+    /// of this inference variable is a const (we can't check it).
+    crate fn to_const(self) -> Const {
+        Const::Var(self.index as usize)
+    }
 }
 
 impl UnifyKey for InferenceVariable {
@@ -99,6 +106,12 @@ impl From<Ty> for InferenceValue {
 impl From<Lifetime> for InferenceValue {
     fn from(lifetime: Lifetime) -> Self {
         InferenceValue::Bound(ParameterKind::Lifetime(lifetime))
+    }
+}
+
+impl From<Const> for InferenceValue {
+    fn from(cn: Const) -> Self {
+        InferenceValue::Bound(ParameterKind::Const(cn))
     }
 }
 

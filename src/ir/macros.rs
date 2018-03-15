@@ -42,6 +42,10 @@ macro_rules! arg {
         ::ir::ParameterKind::Lifetime(lifetime!($b))
     };
 
+    ((lifetime $b:tt)) => {
+        ::ir::ParameterKind::Const(const_!($b))
+    };
+
     ($arg:tt) => {
         ::ir::ParameterKind::Ty(ty!($arg))
     };
@@ -63,6 +67,21 @@ macro_rules! lifetime {
 
     (($($b:tt)*)) => {
         lifetime!($($b)*)
+    };
+}
+
+#[cfg(test)]
+macro_rules! const_ {
+    (var $b:expr) => {
+        ::ir::Const::Var($b)
+    };
+
+    (expr $b:expr) => {
+        $b.clone()
+    };
+
+    (($($b:tt)*)) => {
+        const_!($($b)*)
     };
 }
 

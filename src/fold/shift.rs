@@ -99,6 +99,14 @@ impl ExistentialFolder for Shifter {
     ) -> Fallible<Lifetime> {
         Ok(Lifetime::Var(self.adjust(depth, binders)))
     }
+
+    fn fold_free_existential_const(
+        &mut self,
+        depth: usize,
+        binders: usize,
+    ) -> Fallible<Const> {
+        Ok(Const::Var(self.adjust(depth, binders)))
+    }
 }
 
 impl IdentityUniversalFolder for Shifter {}
@@ -140,6 +148,14 @@ impl ExistentialFolder for DownShifter {
         binders: usize,
     ) -> Fallible<Lifetime> {
         Ok(Lifetime::Var(self.adjust(depth, binders)?))
+    }
+
+    fn fold_free_existential_const(
+        &mut self,
+        depth: usize,
+        binders: usize,
+    ) -> Fallible<Const> {
+        Ok(Const::Var(self.adjust(depth, binders)?))
     }
 }
 

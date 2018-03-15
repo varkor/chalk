@@ -75,6 +75,14 @@ impl Debug for Lifetime {
     }
 }
 
+impl Debug for Const {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        match *self {
+            Const::Var(depth) => write!(fmt, "const ?{}", depth),
+        }
+    }
+}
+
 impl Debug for ApplicationTy {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         write!(fmt, "{:?}{:?}", self.name, Angle(&self.parameters))
@@ -238,6 +246,7 @@ impl Debug for Goal {
                     match *binder {
                         ParameterKind::Ty(()) => write!(fmt, "type")?,
                         ParameterKind::Lifetime(()) => write!(fmt, "lifetime")?,
+                        ParameterKind::Const(()) => write!(fmt, "const")?,
                     }
                 }
                 write!(fmt, "> {{ {:?} }}", subgoal.value)
@@ -266,6 +275,7 @@ impl<T: Debug> Debug for Binders<T> {
                 match *binder {
                     ParameterKind::Ty(()) => write!(fmt, "type")?,
                     ParameterKind::Lifetime(()) => write!(fmt, "lifetime")?,
+                    ParameterKind::Const(()) => write!(fmt, "const")?,
                 }
             }
             write!(fmt, "> ")?;
@@ -303,11 +313,12 @@ impl<T: Display> Display for Canonical<T> {
     }
 }
 
-impl<T: Debug, L: Debug> Debug for ParameterKind<T, L> {
+impl<T: Debug, L: Debug, C: Debug> Debug for ParameterKind<T, L, C> {
     default fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
         match *self {
             ParameterKind::Ty(ref n) => write!(fmt, "Ty({:?})", n),
             ParameterKind::Lifetime(ref n) => write!(fmt, "Lifetime({:?})", n),
+            ParameterKind::Const(ref n) => write!(fmt, "Const({:?})", n),
         }
     }
 }
@@ -325,6 +336,7 @@ impl Debug for Parameter {
         match *self {
             ParameterKind::Ty(ref n) => write!(fmt, "{:?}", n),
             ParameterKind::Lifetime(ref n) => write!(fmt, "{:?}", n),
+            ParameterKind::Const(ref n) => write!(fmt, "{:?}", n),
         }
     }
 }

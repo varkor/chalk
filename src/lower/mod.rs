@@ -41,6 +41,10 @@ enum LifetimeLookup {
     Parameter(usize),
 }
 
+enum ConstLookup {
+    Parameter(usize),
+}
+
 const SELF: &str = "Self";
 
 impl<'k> Env<'k> {
@@ -64,6 +68,16 @@ impl<'k> Env<'k> {
         }
 
         bail!("invalid lifetime name: {:?}", name.str);
+    }
+
+    fn lookup_const(&self, name: Identifier) -> Result<ConstLookup> {
+        if let Some(k) = self.parameter_map
+            .get(&ir::ParameterKind::Const(name.str))
+        {
+            return Ok(ConstLookup::Parameter(*k));
+        }
+
+        bail!("invalid const name: {:?}", name.str);
     }
 
     fn type_kind(&self, id: ir::ItemId) -> &ir::TypeKind {
@@ -348,6 +362,7 @@ impl LowerParameterKind for ParameterKind {
         match *self {
             ParameterKind::Ty(ref n) => ir::ParameterKind::Ty(n.str),
             ParameterKind::Lifetime(ref n) => ir::ParameterKind::Lifetime(n.str),
+            ParameterKind::Const(ref n) => ir::ParameterKind::Const(n.str),
         }
     }
 }
@@ -451,7 +466,8 @@ impl LowerWhereClause<ir::DomainGoal> for WhereClause {
             WhereClause::TraitRefFromEnv { ref trait_ref } => {
                 ir::FromEnv::TraitRef(trait_ref.lower(env)?).cast()
             }
-            WhereClause::UnifyTys { .. } | WhereClause::UnifyLifetimes { .. } => {
+            WhereClause::UnifyTys { .. } | WhereClause::UnifyLifetimes { .. } |
+            WhereClause::UnifyConsts { .. } => {
                 bail!("this form of where-clause not allowed here")
             }
             WhereClause::TraitInScope { trait_name } => {
@@ -494,6 +510,10 @@ impl LowerWhereClause<ir::LeafGoal> for WhereClause {
             WhereClause::UnifyLifetimes { ref a, ref b } => ir::EqGoal {
                 a: ir::ParameterKind::Lifetime(a.lower(env)?),
                 b: ir::ParameterKind::Lifetime(b.lower(env)?),
+            }.cast(),
+            WhereClause::UnifyConsts { ref a, ref b } => ir::EqGoal {
+                a: ir::ParameterKind::Const(a.lower(env)?),
+                b: ir::ParameterKind::Const(b.lower(env)?),
             }.cast(),
             WhereClause::TraitInScope { trait_name } => {
                 let id = match env.lookup(trait_name)? {
@@ -756,6 +776,7 @@ impl LowerParameter for Parameter {
         match *self {
             Parameter::Ty(ref t) => Ok(ir::ParameterKind::Ty(t.lower(env)?)),
             Parameter::Lifetime(ref l) => Ok(ir::ParameterKind::Lifetime(l.lower(env)?)),
+            Parameter::Const(ref c) => Ok(ir::ParameterKind::Const(c.lower(env)?)),
         }
     }
 }
@@ -769,6 +790,20 @@ impl LowerLifetime for Lifetime {
         match *self {
             Lifetime::Id { name } => match env.lookup_lifetime(name)? {
                 LifetimeLookup::Parameter(d) => Ok(ir::Lifetime::Var(d)),
+            },
+        }
+    }
+}
+
+trait LowerConst {
+    fn lower(&self, env: &Env) -> Result<ir::Const>;
+}
+
+impl LowerConst for Const {
+    fn lower(&self, env: &Env) -> Result<ir::Const> {
+        match *self {
+            Const::Id { name } => match env.lookup_const(name)? {
+                ConstLookup::Parameter(d) => Ok(ir::Const::Var(d)),
             },
         }
     }
@@ -1238,8 +1273,9 @@ impl<'a> ToParameter for (&'a ir::ParameterKind<()>, usize) {
     fn to_parameter(&self) -> ir::Parameter {
         let &(binder, index) = self;
         match *binder {
-            ir::ParameterKind::Lifetime(_) => ir::ParameterKind::Lifetime(ir::Lifetime::Var(index)),
             ir::ParameterKind::Ty(_) => ir::ParameterKind::Ty(ir::Ty::Var(index)),
+            ir::ParameterKind::Lifetime(_) => ir::ParameterKind::Lifetime(ir::Lifetime::Var(index)),
+            ir::ParameterKind::Const(_) => ir::ParameterKind::Const(ir::Const::Var(index)),
         }
     }
 }

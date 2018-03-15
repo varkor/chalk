@@ -39,6 +39,10 @@ impl<T: Zip> CouldMatch<T> for T {
                 Ok(())
             }
 
+            fn zip_consts(&mut self, _: &Const, _: &Const) -> Fallible<()> {
+                Ok(())
+            }
+
             fn zip_binders<T>(&mut self, a: &Binders<T>, b: &Binders<T>) -> Fallible<()>
             where
                 T: Zip,

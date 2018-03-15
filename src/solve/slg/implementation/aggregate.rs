@@ -113,6 +113,11 @@ fn merge_into_guidance(
                     // creating guidance here anyway.
                     return infer.new_variable(universe).to_lifetime().cast();
                 }
+                ParameterKind::Const(_) => {
+                    // Ignore the consts from the substitution: we're just
+                    // creating guidance here anyway.
+                    return infer.new_variable(universe).to_const().cast();
+                }
             };
 
             let ty1 = value1.assert_ty_ref();
@@ -152,6 +157,12 @@ fn is_trivial(subst: &Canonical<Substitution>) -> bool {
             // And no lifetime mappings. (This is too strict, but we never
             // product substs with lifetimes.)
             ParameterKind::Lifetime(_) => false,
+
+            // All consts are mapped to distinct variables (as with types).
+            ParameterKind::Const(c) => match c.var() {
+                None => false,
+                Some(depth) => depth == index,
+            },
         })
 }
 
@@ -304,7 +315,11 @@ impl<'infer> AntiUnifier<'infer> {
             (ParameterKind::Lifetime(l1), ParameterKind::Lifetime(l2)) => {
                 ParameterKind::Lifetime(self.aggregate_lifetimes(l1, l2))
             }
-            (ParameterKind::Ty(_), _) | (ParameterKind::Lifetime(_), _) => {
+            (ParameterKind::Const(c1), ParameterKind::Const(c2)) => {
+                ParameterKind::Const(self.aggregate_consts(c1, c2))
+            }
+            (ParameterKind::Ty(_), _) | (ParameterKind::Lifetime(_), _) |
+            (ParameterKind::Const(_), _) => {
                 panic!("mismatched parameter kinds: p1={:?} p2={:?}", p1, p2)
             }
         }
@@ -322,12 +337,22 @@ impl<'infer> AntiUnifier<'infer> {
         }
     }
 
+    fn aggregate_consts(&mut self, c1: &Const, c2: &Const) -> Const {
+        match (c1, c2) {
+            (Const::Var(_), _) => self.new_const_variable(),
+        }
+    }
+
     fn new_variable(&mut self) -> Ty {
         self.infer.new_variable(self.universe).to_ty()
     }
 
     fn new_lifetime_variable(&mut self) -> Lifetime {
         self.infer.new_variable(self.universe).to_lifetime()
+    }
+
+    fn new_const_variable(&mut self) -> Const {
+        self.infer.new_variable(self.universe).to_const()
     }
 }
 

@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 use std::fmt;
 use std::sync::Arc;
 use ir::*;

@@ -105,6 +105,10 @@ impl<'infer> TypeFolder for Truncater<'infer> {
     fn fold_lifetime(&mut self, lifetime: &Lifetime, binders: usize) -> Fallible<Lifetime> {
         fold::super_fold_lifetime(self, lifetime, binders)
     }
+
+    fn fold_const(&mut self, cn: &Const, binders: usize) -> Fallible<Const> {
+        fold::super_fold_const(self, cn, binders)
+    }
 }
 
 impl<'infer> IdentityExistentialFolder for Truncater<'infer> {}

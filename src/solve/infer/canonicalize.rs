@@ -107,6 +107,16 @@ impl<'q> UniversalFolder for Canonicalizer<'q> {
         self.max_universe = max(self.max_universe, universe);
         Ok(universe.to_lifetime())
     }
+
+    fn fold_free_universal_const(
+        &mut self,
+        universe: UniverseIndex,
+        _binders: usize,
+    ) -> Fallible<Const> {
+        // self.max_universe = max(self.max_universe, universe);
+        // Ok(universe.to_const())
+        unimplemented!() // TODO(varkor)
+    }
 }
 
 impl<'q> ExistentialFolder for Canonicalizer<'q> {
@@ -156,6 +166,31 @@ impl<'q> ExistentialFolder for Canonicalizer<'q> {
                 let position = self.add(free_var);
                 debug!("not yet unified: position={:?}", position);
                 Ok(InferenceVariable::from_depth(position + binders).to_lifetime())
+            }
+        }
+    }
+
+    fn fold_free_existential_const(
+        &mut self,
+        depth: usize,
+        binders: usize,
+    ) -> Fallible<Const> {
+        debug_heading!(
+            "fold_free_existential_const(depth={:?}, binders={:?})",
+            depth,
+            binders
+        );
+        let var = InferenceVariable::from_depth(depth);
+        match self.table.probe_const_var(var) {
+            Some(c) => {
+                debug!("bound to {:?}", c);
+                Ok(c.fold_with(self, 0)?.up_shift(binders))
+            }
+            None => {
+                let free_var = ParameterKind::Const(self.table.unify.find(var));
+                let position = self.add(free_var);
+                debug!("not yet unified: position={:?}", position);
+                Ok(InferenceVariable::from_depth(position + binders).to_const())
             }
         }
     }

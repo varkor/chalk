@@ -262,7 +262,7 @@ impl<'t> AnswerSubstitutor<'t> {
     fn unify_free_answer_var(
         &mut self,
         answer_depth: usize,
-        pending: ParameterKind<&Ty, &Lifetime>,
+        pending: ParameterKind<&Ty, &Lifetime, &Const>,
     ) -> Fallible<bool> {
         // This variable is bound in the answer, not free, so it
         // doesn't represent a reference into the answer substitution.
@@ -383,6 +383,23 @@ impl<'t> Zipper for AnswerSubstitutor<'t> {
                 "structural mismatch between answer `{:?}` and pending goal `{:?}`",
                 answer, pending,
             ),
+        }
+    }
+
+    fn zip_consts(&mut self, answer: &Const, pending: &Const) -> Fallible<()> {
+        if let Some(pending) = self.table.normalize_const(pending, self.pending_binders) {
+            return Zip::zip_with(self, answer, &pending);
+        }
+
+        let Const::Var(answer_depth) = answer;
+        if self.unify_free_answer_var(*answer_depth, ParameterKind::Const(pending))? {
+            return Ok(());
+        }
+
+        match (answer, pending) {
+            (Const::Var(answer_depth), Const::Var(pending_depth)) => {
+                self.assert_matching_vars(*answer_depth, *pending_depth)
+            }
         }
     }
 

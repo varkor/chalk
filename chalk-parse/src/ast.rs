@@ -58,17 +58,20 @@ pub struct AssocTyDefn {
 pub enum ParameterKind {
     Ty(Identifier),
     Lifetime(Identifier),
+    Const(Identifier),
 }
 
 pub enum Parameter {
     Ty(Ty),
     Lifetime(Lifetime),
+    Const(Const),
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Kind {
     Ty,
     Lifetime,
+    Const,
 }
 
 impl fmt::Display for Kind {
@@ -77,6 +80,7 @@ impl fmt::Display for Kind {
             match *self {
                 Kind::Ty => "type",
                 Kind::Lifetime => "lifetime",
+                Kind::Const => "const",
             }
         )
     }
@@ -91,6 +95,7 @@ impl Kinded for ParameterKind {
         match *self {
             ParameterKind::Ty(_) => Kind::Ty,
             ParameterKind::Lifetime(_) => Kind::Lifetime,
+            ParameterKind::Const(_) => Kind::Const,
         }
     }
 }
@@ -100,6 +105,7 @@ impl Kinded for Parameter {
         match *self {
             Parameter::Ty(_) => Kind::Ty,
             Parameter::Lifetime(_) => Kind::Lifetime,
+            Parameter::Const(_) => Kind::Const,
         }
     }
 }
@@ -139,6 +145,12 @@ pub enum Ty {
 }
 
 pub enum Lifetime {
+    Id {
+        name: Identifier,
+    }
+}
+
+pub enum Const {
     Id {
         name: Identifier,
     }
@@ -191,6 +203,7 @@ pub enum WhereClause {
     TraitRefFromEnv { trait_ref: TraitRef },
     UnifyTys { a: Ty, b: Ty },
     UnifyLifetimes { a: Lifetime, b: Lifetime },
+    UnifyConsts { a: Const, b: Const },
     TraitInScope { trait_name: Identifier },
 }
 
