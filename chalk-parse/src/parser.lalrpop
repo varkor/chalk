@@ -95,6 +95,7 @@ Impl: Impl = {
 ParameterKind: ParameterKind = {
     Id => ParameterKind::Ty(<>),
     LifetimeId => ParameterKind::Lifetime(<>),
+    ConstId => ParameterKind::Const(<>),
 };
 
 AssocTyValue: AssocTyValue = {
@@ -126,9 +127,14 @@ Lifetime: Lifetime = {
     <n:LifetimeId> => Lifetime::Id { name: n },
 };
 
+Const: Const = {
+    <n:ConstId> => Const::Id { name: n },
+};
+
 Parameter: Parameter = {
     Ty => Parameter::Ty(<>),
     Lifetime => Parameter::Lifetime(<>),
+    Const => Parameter::Const(<>),
 };
 
 ProjectionTy: ProjectionTy = {
@@ -252,6 +258,13 @@ Id: Identifier = {
 
 LifetimeId: Identifier = {
     <l:@L> <s:r"'([A-Za-z]|_)([A-Za-z0-9]|_)*"> <r:@R> => Identifier {
+        str: intern(s),
+        span: Span::new(l, r),
+    }
+};
+
+ConstId: Identifier = {
+    <l:@L> <s:r"([A-Za-z]|_)([A-Za-z0-9]|_)*"> <r:@R> => Identifier {
         str: intern(s),
         span: Span::new(l, r),
     }
